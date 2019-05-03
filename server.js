@@ -1,9 +1,12 @@
 // Module
-const Ddos = require('ddos')
+const print = console.log
+const Ddos = require('ddos');
 const express = require('express');
 const fs = require('fs')
 const bodyParser = require('body-parser')
-// install ddos, express, body-parser, !
+const amodes = require('./modes');
+const conf = require('./server.properties');
+// install ddos, express, body-parser, nodemailer !
 
 
 /////////////////////////////////////////////////////////////
@@ -35,12 +38,24 @@ var  BgMagenta = "\x1b[45m"
 var  BgCyan = "\x1b[46m"
 var  BgWhite = "\x1b[47m"
 
+/////////////////////////////////////////////////////////////
+
+//anti ddos
+var ddos = new Ddos({burst:10, limit:20,errormessage: conf.errormessage})
+var running = false;
+// Server Config
+var args = process.argv.slice(2);
+port = args[0] // First argument have to be the port
+if(port == undefined){ // default port is 80
+  port = 80
+}
 
 // api = Server(express)
 var api = express();
+api.use(express.static('public'));
+api.use(ddos.express);
 api.use(bodyParser.urlencoded({ extended: false }));
 api.use(bodyParser.json());
-
 
 /////////////////////////////////////////////////////////////////////////////////////////////////////////////
 /////////////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -130,7 +145,9 @@ api.post('/api/', function (req, res) {
                 }
               }
               if(ow == true) {
-                owrite("data/login.zerosql",logins['response'].replace("[","").replace("]",""))
+                let data = JSON.stringify(logins['response']).replace("[","").replace("]","")
+                data = JSON.parse(data)
+                owrite("data/login.zerosql",data)
               }else{
                 ldata = {}
                 ldata.name = user['response'][data]['name'];
@@ -203,67 +220,75 @@ api.post('/api/', function (req, res) {
 })
 
 /////////////////////////////////////////////////////////////////////////////////////////////////////////////
+api.get('/queue/', function(req,res){
+  res.header("content-type","application/json")
+  res.header("X-Powered-By","ZeroTwo#5019")
+  res.header("Message","Hello World ;D")
+  res.send(JSON.stringify(amodes.amodes));
+});
 
 api.post('/queue/', function(req, res){
   if( running == 0){
     running = 1;
-    if(req.body.type == "join"){
-      var mode = req.body.mode;
-      var name = req.body.name;
-        if(fsize("queues/index.json") > 0){
-          fs.readFile("queues/index.json", "UTF8", function (err, data) {
-            if (err) { throw err };
-            data = JSON.parse(data);
-            // find queue with place for user
-            var i = 0;
-            var found = false;
-            for(item in data){
-              if(data[i].user < 10){
-                found = true
-                queue = data[i];
-                data[i].user = parseInt(data[i].user + 1)
-                
-                if(fsize(queue.index+".json") > 0){
-                  fs.readFile(queue.index+".json", "UTF8", function (err, queue_d) {
-                    if (err) { throw err };
-                    queue_d = JSON.parse(queue_d);
-                    queue_d.push('{"name":"'+name+'","id":'+queue.user+'}');
-                    owrite("queues/"+queue.index+".json",queue_d)
-                  });
-                }else{
-                  owrite("queues/"+queue.index+".json","[\"{\"name\":\""+name+"\",\"id\":1}\"]")
+      if(req.body.type == "join"){
+        var mode = req.body.mode;
+        var name = req.body.name;
+        if(mode == "normal"){
+          if(fsize("queues/normal.json") > 0){
+            fs.readFile("queues/normal.json", "UTF8", function (err, data) {
+              if (err) { throw err };
+              data = JSON.parse(data);
+              // find queue with place for user
+              var i = 0;
+              var found = false;
+              for(item in data){
+                if(data[i].user < 10){
+                  found = true
+                  queue = data[i];
+                  data[i].user = parseInt(data[i].user + 1)
+                  
+                  if(fsize(queue.index+".json") > 0){
+                    fs.readFile(queue.index+".json", "UTF8", function (err, queue_d) {
+                      if (err) { throw err };
+                      queue_d = JSON.parse(queue_d);
+                      queue_d.push('{"name":"'+name+'","id":'+queue.user+'}');
+                      owrite("queues/"+queue.index+".json",queue_d)
+                    });
+                  }else{
+                    owrite("queues/"+queue.index+".json","[\"{\"name\":\""+name+"\",\"id\":1}\"]")
+                  }
+                  res.send('{"queue":'+queue.index+',"user":'+queue.user+'}')
+                  break;
+                  console.log(colors.FgRed+colors.BgWhite+"if u see this ure fucked up!"+colors.Reset)
                 }
-                res.send('{"queue":'+queue.index+',"user":'+queue.user+'}')
-                break;
-                console.log(colors.FgRed+colors.BgWhite+"if u see this ure fucked up!"+colors.Reset)
+                i++;
               }
-              i++;
-            }
-            if(found == false){
-              data[i+1] = {}
-              data[i+1].index = i+1;
-              data[i+1].user = 1;
-              res.send('{"queue":'+data[i+1].index+',"user":'+data[i+1].user+'}')
-              owrite("queues/"+i+1+",json",'["{"name":"'+name+'","id":1}"]')
-            }
-            console.log(JSON.stringify(data))
-            data = JSON.parse(JSON.stringify(data).replace("null,",""))
-            owrite("queues/index.json",data);
-            
-            setTimeout(() => {
-              running = 0;
-            }, 1000);
-          });
-      }else{
-        data = []
-        data[0] = {}
-        data[0].index = 1;
-        data[0].user = 1;
-        owrite("queues/index.json", data)
-        res.send('{"queue":'+data[0].index+',"user":'+data[0].user+'}')
-        setTimeout(() => {
-          running = 0;
-        }, 1000);
+              if(found == false){
+                data[i+1] = {}
+                data[i+1].index = i+1;
+                data[i+1].user = 1;
+                res.send('{"queue":'+data[i+1].index+',"user":'+data[i+1].user+'}')
+                owrite("queues/"+i+1+",json",'["{"name":"'+name+'","id":1}"]')
+              }
+              console.log(JSON.stringify(data))
+              data = JSON.parse(JSON.stringify(data).replace("null,",""))
+              owrite("queues/normal.json",data);
+              
+              setTimeout(() => {
+                running = 0;
+              }, 1000);
+            });
+        }else{
+          data = []
+          data[0] = {}
+          data[0].index = 1;
+          data[0].user = 1;
+          owrite("queues/index.json", data)
+          res.send('{"queue":'+data[0].index+',"user":'+data[0].user+'}')
+          setTimeout(() => {
+            running = 0;
+          }, 1000);
+        }
       }
     }
   }else{
@@ -293,6 +318,7 @@ var server = api.listen(port, function () {
   console.log("//////////////////////////////////////////")
   console.log("// Good Luck Have Fun from "+FgRed+"ZéroTwó"+Reset+" :P   //")
   console.log("//////////////////////////////////////////")
+  print(amodes.amodes)
 });
 
 /////////////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -340,7 +366,7 @@ function filetojson(filename){
 
 function makeid(length) {
   var text = "";
-  var possible = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789/\.,:#+°~<>";
+  var possible = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789/\@.,:#+°~<>";
 
   for (var i = 0; i < length; i++)
     text += possible.charAt(Math.floor(Math.random() * possible.length));
