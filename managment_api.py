@@ -62,6 +62,8 @@ def critical(text):
 ################## END LOGGING ###################################
 
 
+# Standart Values:
+PORT = 443
 
 ARGS = sys.argv[1:]
 i = 0
@@ -75,9 +77,6 @@ for arg in ARGS:
             critical(str(err))
 
     i = i + 1
-    
-if not PORT:
-    PORT = 443
 
 
 if not os.path.exists("data"):
