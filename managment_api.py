@@ -23,7 +23,9 @@ except: install.append("colorama")
 if install:
     to_install = " ".join(install)
     os.system(sys.executable + " -m pip install " + to_install)
-    raise Exception("Python modules ({to_install}) installed. Start script again.")
+    print("[STARTUP] INSTALLED MODULES: "+str(install))
+    quit()
+
 
 
 import uuid
