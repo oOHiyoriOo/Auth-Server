@@ -70,12 +70,14 @@ for arg in ARGS:
         try:
             PORT = int(ARGS[i + 1])
         except ValueError:
-            error("Invalid PORT!")
+            critical("Invalid PORT!")
         except Exception as err:
-            error(str(err))
+            critical(str(err))
 
     i = i + 1
-
+    
+if not PORT:
+    PORT = 443
 
 
 if not os.path.exists("data"):
