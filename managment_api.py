@@ -1,11 +1,30 @@
-from flask import Flask, abort, request
-from flask_restful import Resource, Api
 from json import dumps
-# from flask.ext.jsonpify import jsonify not working anymore use below:
-from flask_jsonpify import jsonify
-from tinydb import TinyDB, Query
-from colorama import Fore, init
 from urllib.parse import unquote
+import os
+import sys 
+
+# install modules if missing!
+install = []
+try: from tinydb import TinyDB, Query
+except: install.append("TinyDB")
+
+try: from flask import Flask, abort, request
+except: install.append("flask")
+
+try: from flask_restful import Resource, Api
+except: install.append("flask_restful")
+
+try: from flask_jsonpify import jsonify
+except: install.append("flask_jsonpify")
+
+try: from colorama import Fore, init
+except: install.append("colorama")
+
+if install:
+    to_install = " ".join(install)
+    os.system(sys.executable + " -m pip install " + to_install)
+    raise Exception(f"Python modules ({to_install}) installed. Start script again.")
+
 
 import uuid
 import json
