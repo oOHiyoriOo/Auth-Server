@@ -54,7 +54,28 @@ def info(text):
 
 def gen_id(size = 32, chars=string.digits): #+ string.punctuation
     return ''.join(random.choice(chars) for _ in range(size))
+
+def critical(text):
+    print("["+Fore.RED+"CRITICAL"+Fore.RESET+"] "+str(text))
+    quit()
+
 ################## END LOGGING ###################################
+
+
+
+ARGS = sys.argv[1:]
+i = 0
+for arg in ARGS:
+    if arg == "-P":
+        try:
+            PORT = int(ARGS[i + 1])
+        except ValueError:
+            error("Invalid PORT!")
+        except Exception as err:
+            error(str(err))
+
+    i = i + 1
+
 
 
 if not os.path.exists("data"):
@@ -175,4 +196,4 @@ api.add_resource(get_modes, '/modes/query/') # get all modes for displaying in t
 
 
 if __name__ == '__main__':
-    app.run(port='443',debug=False)
+    app.run(port=PORT,debug=False)
