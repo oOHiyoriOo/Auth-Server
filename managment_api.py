@@ -143,6 +143,13 @@ def apply_caching(response):
     response.headers["server"] = "League of Sandbox handler v3.0"
     return response
 
+# # ERROR 404
+# from flask_httpauth import HTTPBasicAuth
+# auth = HTTPBasicAuth()
+# @app.errorhandler(404)
+# def not_found(error):
+#     return make_response(jsonify({"error": True,"msg":"url not found on this server"}), 404)
+
 
 class login(Resource):
     def post(self):
@@ -197,4 +204,4 @@ api.add_resource(get_modes, '/modes/query/') # get all modes for displaying in t
 
 
 if __name__ == '__main__':
-    app.run(port=PORT,debug=False)
+    app.run(host="0.0.0.0",port=PORT,debug=False)
