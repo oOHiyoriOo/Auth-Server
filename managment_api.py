@@ -2,6 +2,20 @@ from json import dumps
 from urllib.parse import unquote
 import os
 import sys 
+import time
+
+# multi Threading....
+from threading import Thread
+import _thread
+
+# systemcheck
+import platform
+
+#disable console spamm
+import logging
+log = logging.getLogger('werkzeug')
+log.setLevel(logging.ERROR)
+
 
 # install modules if missing!
 install = []
@@ -64,7 +78,10 @@ def critical(text):
 
 # Standart Values:
 PORT = 443
+api_online = False
 
+
+## ARG Parsing
 ARGS = sys.argv[1:]
 i = 0
 for arg in ARGS:
@@ -197,11 +214,67 @@ class capi_key(Resource):
     def post(self,admin_key):
         return {"error":True,"msg":"Permission Denied!"}
 
-api.add_resource(login, '/api/login/') # login user
 
+# API's
+api.add_resource(login, '/api/login/') # login user
 api.add_resource(find, '/queue/join/<mid>/<uid>/') #mid == Modus id #uid == User id # removed qid to make autojoin into a free one (less data handling is needed.)
 api.add_resource(get_modes, '/modes/query/') # get all modes for displaying in the client
 
 
-if __name__ == '__main__':
-    app.run(host="0.0.0.0",port=PORT,debug=False)
+# API Server Start for the multithread...
+def API():
+    done_task("Starting API Server")
+    app.run(host="0.0.0.0",port=PORT,debug=False,threaded=True)
+
+
+# command functions
+def clear():
+    if platform.system() == "Windows":
+        os.system('cls')
+    else:
+        os.system('clear')
+
+
+# Command Parsing.
+def command_parse(cmd):
+    #some correction :3
+    if cmd.endswith(" "):
+        cmd = cmd.lower().replace(" ","")
+    else:
+        cmd = cmd.lower()
+    
+    #the actual command parsing:
+    
+    # if cmd[:command_length] == "command":
+
+    if cmd[:5] == "clear":
+        clear()
+
+    elif cmd[:4] == "quit" or cmd[:4] == "exit":
+        quit()
+    
+    
+    else:
+        error("bash: "+cmd+": Kommando nicht gefunden.")
+
+def check_api(api_tread):
+    while True:
+        return api_tread.isAlive()
+
+try:
+    #_thread.start_new_thread( FUNCTION_NAME , (#ARGS) )
+    api_thread = _thread.start_new_thread( API, () )
+except Exception as err:
+    critical(str(err))
+
+
+time.sleep(1)
+print("["+Fore.MAGENTA+"SERVER"+Fore.RESET+"] "+str("Running on: 0.0.0.0:"+str(PORT)))
+while True:
+    try:
+        cmd = input('$ ')
+        command_parse(cmd)
+    except Exception as err:
+        error(str(err))
+    except KeyboardInterrupt:
+        quit()
