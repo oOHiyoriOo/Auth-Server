@@ -1,7 +1,7 @@
 # League Sandbox Auth-Server
 
 This is a Auth-Server for the League Sandbox
-  - Working on Login.
+  - Login should work now but theres no register °~°
   - [Client](https://github.com/oOHiyoriOo/Leaue_sandbox_client) repo :P
 
 > Its a easy to use Server, to start type "python managment_api.py <port> " in cmd
@@ -23,7 +23,7 @@ $ python managment_api.py
 
 |Feature | Status |
 | ------ | ------ |
-| Login | X |
+| Login | ✓ |
 | Registration | X |
 | Game_Server connection | X |
 | Gui | ✓ |
