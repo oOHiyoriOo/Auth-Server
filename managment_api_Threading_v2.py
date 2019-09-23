@@ -11,7 +11,6 @@ import requests
 
 # multi Threading....
 from threading import Thread
-import _thread
 
 # systemcheck
 import platform
@@ -175,14 +174,11 @@ def apply_caching(response):
 class shutdown(Resource):
     def post(self, key):
         if key == shutdown_token:
-            try:
-                func = request.environ.get('werkzeug.server.shutdown')
-                func()
-            except:
-                raise RuntimeError("Server Shutdown!")
-            finally:
-                critical("Cant Stop Server Shutdown Application!")
-            return {'error':False}
+            func = request.environ.get('werkzeug.server.shutdown')
+            if func is None:
+                raise RuntimeError('Not running with the Werkzeug Server')
+            func()
+            return {"msg":"Shutting down..."}
         else:
             return {'error':True}
 
@@ -244,13 +240,6 @@ api.add_resource(login, '/api/login/') # login user
 api.add_resource(find, '/queue/join/<mid>/<uid>/') #mid == Modus id #uid == User id # removed qid to make autojoin into a free one (less data handling is needed.)
 api.add_resource(get_modes, '/modes/query/') # get all modes for displaying in the client
 
-
-# API Server Start for the multithread...
-def API():
-    done_task("Starting API Server")
-    app.run(host="0.0.0.0",port=PORT,debug=False,threaded=True)
-
-
 # command functions
 def clear():
     if platform.system() == "Windows":
@@ -288,23 +277,12 @@ def command_parse(cmd):
         clear()
 
     elif cmd[:4] == "quit" or cmd[:4] == "exit" or cmd[:4] == "stop":
+        shutdown_req()
         quit()
     
     elif cmd[:6] == "reload":
-        done_task("http://127.0.0.1:"+str(PORT)+shutdown_url+"/"+str(shutdown_token))
-        try:
-            requests.post("http://127.0.0.1:"+str(PORT)+shutdown_url+"/"+str(shutdown_token) , data={'msg':'fck off'})
-        except ConnectionAbortedError:
-            pass
-
-        warn("SERVER SHUTDOWN!")
-        
-        # restart ...
-        try:
-            api_thread = _thread.start_new_thread( API, () )
-        except Exception as err:
-            critical(str(err))
-
+        shutdown_req()
+        run_api()
     else:
         error("bash: "+cmd+": Kommando nicht gefunden.")
 
@@ -312,13 +290,32 @@ def check_api(api_tread):
     while True:
         return api_tread.isAlive()
 
-try:
-    #_thread.start_new_thread( FUNCTION_NAME , (#ARGS) )
-    api_thread = _thread.start_new_thread( API, () )
+def API(): 
+    done_task("Starting API Server")
+    app.run(host="0.0.0.0",port=PORT,debug=False,threaded=True)
 
-except Exception as err:
-    critical(str(err))
 
+def shutdown_req():
+    # this shows the url for debug purpose :3
+    # done_task("http://127.0.0.1:"+str(PORT)+shutdown_url+"/"+str(shutdown_token))
+    try:
+        requests.post("http://127.0.0.1:"+str(PORT)+shutdown_url+"/"+str(shutdown_token) , data={'msg':'fck off'})
+    except ConnectionAbortedError:
+        pass
+
+    warn("SERVER SHUTDOWN!")
+
+def run_api():
+    try:
+        clear()
+        api_thread = Thread(target=API)
+        api_thread.start()
+
+    except Exception as err:
+        critical(str(err))
+
+
+run_api()
 
 time.sleep(1)
 print("["+Fore.MAGENTA+"SERVER"+Fore.RESET+"] "+str("Running on: 0.0.0.0:"+str(PORT)))
