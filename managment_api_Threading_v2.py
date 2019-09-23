@@ -1,0 +1,329 @@
+from json import dumps
+from urllib.parse import unquote
+import os
+import sys 
+import time
+import random
+from uuid import uuid4
+import requests
+
+
+
+# multi Threading....
+from threading import Thread
+
+# systemcheck
+import platform
+
+#disable console spamm
+import logging
+log = logging.getLogger('werkzeug')
+log.setLevel(logging.ERROR)
+
+
+# install modules if missing!
+install = []
+try: from tinydb import TinyDB, Query
+except: install.append("TinyDB")
+
+try: from flask import Flask, abort, request
+except: install.append("flask")
+
+try: from flask_restful import Resource, Api
+except: install.append("flask_restful")
+
+try: from flask_jsonpify import jsonify
+except: install.append("flask_jsonpify")
+
+try: from colorama import Fore, init
+except: install.append("colorama")
+
+if install:
+    to_install = " ".join(install)
+    os.system(sys.executable + " -m pip install " + to_install)
+    print("[STARTUP] INSTALLED MODULES: "+str(install))
+    quit()
+
+
+
+import uuid
+import json
+import os
+import string
+import random
+import urllib.request, json 
+
+init()
+
+query = Query()
+
+################## Functions ######################################
+def warn(text):
+    print("["+Fore.YELLOW+"WARN"+Fore.RESET+"] "+str(text))
+
+def error(text):
+    print("["+Fore.RED+"ERROR"+Fore.RESET+"] "+str(text))
+    
+def done_task(text):
+    print("["+Fore.GREEN+"DONE"+Fore.RESET+"] "+str(text))
+
+def info(text):
+    print("["+Fore.WHITE+"INFO"+Fore.RESET+"] "+str(text))
+
+def gen_id(size = 32, chars=string.digits): #+ string.punctuation
+    return ''.join(random.choice(chars) for _ in range(size))
+
+def critical(text):
+    print("["+Fore.RED+"CRITICAL"+Fore.RESET+"] "+str(text))
+    quit()
+
+################## END LOGGING ###################################
+
+
+# Standart Values:
+PORT = 443
+api_online = False
+shutdown_token = str(uuid4())
+
+## ARG Parsing
+ARGS = sys.argv[1:]
+i = 0
+for arg in ARGS:
+    if arg == "-P":
+        try:
+            PORT = int(ARGS[i + 1])
+        except ValueError:
+            critical("Invalid PORT!")
+        except Exception as err:
+            critical(str(err))
+
+    i = i + 1
+
+
+if not os.path.exists("data"):
+    os.makedirs("data")
+    done_task("Created data/")
+
+udb = TinyDB('data/user.json')
+apidb = TinyDB('data/api_keys.json') #maybe i use api keys later to prevent connections from not client applications
+qdb = TinyDB('data/qdb.json') # to save the queues
+fdb = TinyDB('data/find.json') # to find a queue
+mdb = TinyDB('data/Modes.json') # Define The Modes u Want to use In the Client
+
+
+# idea:
+# 5v5 Blind Pick: 100000001
+# 5V5 Draft Pick: 100000010
+# 5V5 Flex      : 100000011
+# 5V5 Solo / Duo: 100000100
+#
+# 3V3 Normal    : 100000101
+# 3V3 Ranked    : 100000111
+#
+# 5V5 Aram      : 100001000
+#  
+# Made Space for more so new modes can be added
+# ===> 
+if str(mdb.search(query.filled == True)) == "[]":
+    mdb.purge() # Safety Purge in case just the "filled" got removed
+    mdb.insert({"filled":True}) # for simple filled test :3
+    
+    # The Modes Themselfs
+    mdb.insert({"id":100000001 , "name": "5v5 Blind Pick"})
+    mdb.insert({"id":100000010 , "name": "5V5 Draft Pick"})
+    mdb.insert({"id":100000011 , "name": "5V5 Flex"})
+    mdb.insert({"id":100000100 , "name": "5V5 Solo / Duo"})
+
+    mdb.insert({"id":100000101 , "name": "3V3 Normal"})
+    mdb.insert({"id":100000111 , "name": "3V3 Ranked"})
+   
+    mdb.insert({"id":100001000 , "name": "5V5 Aram"})
+
+# this is here cuz i need the databases ready when i come to this.
+####################### QUEUE HANDLINE #######################
+
+def joinq(uid,qid):
+    joined = qdb.search(query.id == qid)
+
+    done_task(str(joined))
+
+
+
+##############################################################
+##############################################################
+##############################################################
+
+
+
+
+app = Flask(__name__)
+api = Api(app)
+
+@app.after_request
+def apply_caching(response):
+    response.headers["server"] = "League of Sandbox handler v3.0"
+    return response
+
+# # ERROR 404
+# from flask_httpauth import HTTPBasicAuth
+# auth = HTTPBasicAuth()
+# @app.errorhandler(404)
+# def not_found(error):
+#     return make_response(jsonify({"error": True,"msg":"url not found on this server"}), 404)
+
+class shutdown(Resource):
+    def post(self, key):
+        if key == shutdown_token:
+            func = request.environ.get('werkzeug.server.shutdown')
+            if func is None:
+                raise RuntimeError('Not running with the Werkzeug Server')
+            func()
+            return {"msg":"Shutting down..."}
+        else:
+            return {'error':True}
+
+class login(Resource):
+    def post(self):
+        loginData = unquote(unquote(str(request.data).replace("b'{","{").replace("}'","}")))
+
+        loginData = json.loads(loginData)
+        done_task("Got Login Request For: "+Fore.LIGHTRED_EX+str(loginData['name']+Fore.RESET ))
+
+        info(str(loginData))
+
+        if str(udb.search(query.name== loginData['name']) ) != "[]" and udb.search(query.name== loginData['name'])[0]['password'] == loginData['password']:
+            done_task("Success")
+            # only send htis when success
+            res = {"error":False,"key": str(uuid.uuid4() )} # save the key into the db!
+            
+            warn("sending "+str(res))
+            return res
+        else:
+            error("Wrong Login")
+            res = {"error":True,"msg":"Wrong Login Data."}
+            return res
+
+
+class get_modes(Resource):
+    def get(self):
+        return mdb.search(query.id > 0)
+
+class find(Resource):
+    def get(self,mid,uid):
+        if str(udb.search(query.id == uid)) == "[]":
+            return {"error":True,"msg":"Cant find that user."}
+        else:
+            if str(qdb.search(query.mode == mid)) != "[]": #there open queues (remember to remove full queues to save some space and id's)
+                
+                qid = qdb.search(query.mode == mid)[0]['id'] # get the id of the queue
+
+                joinq(uid,qid)
+
+class capi_key(Resource):
+    def get(self,admin_key):
+        return {"message":"Test not set."}
+    def post(self,admin_key):
+        return {"error":True,"msg":"Permission Denied!"}
+
+
+# API's
+def randurl():
+    url = ""
+    for i in range(random.randint(5,20)):
+        url = url+ str(random.choice(string.ascii_letters))
+    return url
+
+shutdown_url = '/internal/'+randurl()
+api.add_resource(shutdown, shutdown_url+'/<key>')
+
+api.add_resource(login, '/api/login/') # login user
+api.add_resource(find, '/queue/join/<mid>/<uid>/') #mid == Modus id #uid == User id # removed qid to make autojoin into a free one (less data handling is needed.)
+api.add_resource(get_modes, '/modes/query/') # get all modes for displaying in the client
+
+# command functions
+def clear():
+    if platform.system() == "Windows":
+        os.system('cls')
+    else:
+        os.system('clear')
+
+
+# Command Parsing.
+def command_parse(cmd):
+    #some correction :3
+    cmd = cmd.lower()
+    
+    #the actual command parsing:
+    
+    # if cmd[:command_length] == "command":
+    if cmd.startswith("help"):
+        # test fro arguments
+        if cmd.replace("help ","").replace(" ","") != "" and cmd.replace("help","").replace(" ","") :
+            #parse help args
+            pass
+        else:
+            help_dialog = """
+            ---API SERVER HELP--- 
+              Command || Meaning
+            =====================
+              clear   || Clears the server console (makes the spam go woosh)
+              exit    || stops the server (same as stop / quit)
+              stop    || stops the server (same as exit / quit)
+              quit    || stops the server (same as exit / stop)
+              reload  || reload the api server """
+            done_task(help_dialog)
+
+    elif cmd[:5] == "clear":
+        clear()
+
+    elif cmd[:4] == "quit" or cmd[:4] == "exit" or cmd[:4] == "stop":
+        shutdown_req()
+        quit()
+    
+    elif cmd[:6] == "reload":
+        shutdown_req()
+        run_api()
+    else:
+        error("bash: "+cmd+": Kommando nicht gefunden.")
+
+def check_api(api_tread):
+    while True:
+        return api_tread.isAlive()
+
+def API(): 
+    done_task("Starting API Server")
+    app.run(host="0.0.0.0",port=PORT,debug=False,threaded=True)
+
+
+def shutdown_req():
+    # this shows the url for debug purpose :3
+    # done_task("http://127.0.0.1:"+str(PORT)+shutdown_url+"/"+str(shutdown_token))
+    try:
+        requests.post("http://127.0.0.1:"+str(PORT)+shutdown_url+"/"+str(shutdown_token) , data={'msg':'fck off'})
+    except ConnectionAbortedError:
+        pass
+
+    warn("SERVER SHUTDOWN!")
+
+def run_api():
+    try:
+        clear()
+        api_thread = Thread(target=API)
+        api_thread.start()
+
+    except Exception as err:
+        critical(str(err))
+
+
+run_api()
+
+time.sleep(1)
+print("["+Fore.MAGENTA+"SERVER"+Fore.RESET+"] "+str("Running on: 0.0.0.0:"+str(PORT)))
+while True:
+    try:
+        cmd = input('$ ')
+        command_parse(cmd)
+    except Exception as err:
+        error(str(err))
+    except KeyboardInterrupt:
+        quit()
